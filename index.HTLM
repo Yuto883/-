@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>進数ツムツム v58</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #1e1e24; color: #f5f5f5; font-family: 'Arial', sans-serif; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+    .app-container { max-width: 450px; margin: 0 auto; background: #2b2b36; min-height: 100vh; position: relative; padding-bottom: 90px; box-shadow: 0 0 20px rgba(0,0,0,0.5); overflow-x: hidden; }
+    
+    .game-header { background: #111116; padding: 12px; font-size: 13px; display: flex; justify-content: space-between; border-bottom: 2px solid #3d3d4f; align-items: center; }
+    .status-badge { background: #3d3d4f; padding: 4px 10px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+    .account-info { font-size: 11px; color: #aaa; flex: 1; }
+
+    .screen { display: none; padding: 20px; animation: fadeIn 0.15s ease-out; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    #game-screen { background-color: #cceef6; color: #222; transition: background-color 0.3s; position: relative; }
+    #game-canvas { background: #a2e0ee; display: block; margin: 5px auto; border-radius: 15px; border: 3px solid #66cedb; cursor: pointer; touch-action: none; }
+    
+    #game-screen.fever-active { background-color: #3a1c4a; color: #fff; }
+    #game-canvas.fever-canvas { background: #1a0926; border-color: #ff00ff; box-shadow: 0 0 15px #ff00ff; }
+
+    .gauge-container { background: #444; border-radius: 8px; height: 14px; overflow: hidden; position: relative; }
+    .gauge-bar { width: 0%; height: 100%; transition: width 0.1s linear; }
+    
+    .game-control-panel { background: rgba(255, 255, 255, 0.85); border-radius: 12px; padding: 12px; margin-top: 8px; border: 1px solid #ccc; }
+
+    .nav-bar { 
+      position: fixed; 
+      bottom: 0; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      width: 100%; 
+      max-width: 450px; 
+      height: 70px; 
+      background: #111116; 
+      display: flex; 
+      justify-content: flex-start; 
+      align-items: center; 
+      border-top: 2px solid #3d3d4f; 
+      z-index: 100; 
+      overflow-x: auto; 
+      white-space: nowrap; 
+      -webkit-overflow-scrolling: touch; 
+    }
+    .nav-bar::-webkit-scrollbar { display: none; }
+    
+    .nav-item { color: #888; cursor: pointer; text-align: center; font-size: 11px; padding: 10px 18px; display: inline-block; flex: 0 0 auto; }
+    .nav-item.active { color: #00f0ff; font-weight: bold; background: rgba(255,255,255,0.05); }
+    .nav-item i { font-size: 18px; display: block; margin-bottom: 4px; }
+
+    .gacha-card, .mission-card, .tsum-select-card { background: #3d3d4f; border-radius: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid #525269; }
+    .tsum-bubble { width: 58px; height: 72px; border-radius: 10px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; margin: 4px; font-weight: bold; font-size: 11px; color: #fff; border: 2px solid #fff; text-shadow: 1px 1px 2px #000; box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer; position: relative; }
+    .tsum-bubble.selected { border-color: #00f0ff; box-shadow: 0 0 12px #00f0ff; }
+
+    .skill-ready-glow { 
+      background: linear-gradient(45deg, #ff007f, #ff00ff, #00f0ff, #ffc107, #ff007f) !important;
+      background-size: 400% 400% !important;
+      animation: rainbowShift 3s linear infinite, readyPulse 0.8s ease-in-out infinite alternate !important;
+      border: 4px solid #fff !important; color: #fff !important; text-shadow: 0 2px 4px #000;
+    }
+    @keyframes rainbowShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @keyframes readyPulse { from { transform: scale(1.0); box-shadow: 0 0 15px #ff00ff; } to { transform: scale(1.05); box-shadow: 0 0 20px #ff007f; } }
+
+    .book-item { background: #343442; border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; border-left: 4px solid #666; }
+    .book-item.unlocked { border-left-color: #00f0ff; }
+    .book-item.human-style { border-left-color: #ffc107; background: #3c3b2e; } 
+    .book-item.god-style { border-left-color: #e599f7; background: #293a4c; } 
+    .book-emoji { font-size: 28px; width: 44px; height: 44px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .book-lock { filter: grayscale(1) blur(1px); opacity: 0.4; }
+    
+    .calc-pad button { width: 100%; font-size: 11px; padding: 4px 2px; font-weight: bold; }
+    #calc-pad-screen { font-family: monospace; text-align: right; background: #111; color: #00ff00; padding: 2px 6px; font-size: 12px; border-radius: 4px; min-height: 22px; word-break: break-all; }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ヘッダー -->
+  <div class="game-header">
+    <div class="account-info">
+      <div class="fw-bold text-white" style="cursor:pointer;" onclick="changeNamePrompt()">
+        👤 <span id="header-username">ゲスト</span> <i class="fa-solid fa-pen" style="font-size:9px; color:#aaa;"></i>
+      </div>
+      <div style="font-size:9px; color:#00f0ff; cursor:pointer;" onclick="manageAccountMenu()">
+        🔑 コード: <span id="header-account-code">------</span> <i class="fa-solid fa-arrows-rotate" style="font-size:9px;"></i>
+      </div>
+    </div>
+    <div class="d-flex gap-1">
+      <div class="status-badge text-danger"><i class="fa-solid fa-heart"></i> <span id="header-hearts">5</span></div>
+      <div class="status-badge text-warning"><i class="fa-solid fa-coins"></i> <span id="header-coins">0</span></div>
+      <div class="status-badge text-info"><i class="fa-solid fa-ticket"></i> <span id="header-tickets">0</span></div>
+    </div>
+  </div>
+
+  <!-- 計算モード -->
+  <div id="calc-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-calculator text-info"></i> 計算モード</h4>
+    <div class="mb-3">
+      <label class="form-label text-secondary small">変換したい数値</label>
+      <input type="text" id="calc-input" class="form-control bg-dark text-white border-secondary" placeholder="例: 25">
+    </div>
+    <div class="row mb-4">
+      <div class="col">
+        <label class="form-label text-secondary small">変換前（進数）</label>
+        <input type="number" id="calc-from" class="form-control bg-dark text-white border-secondary" value="10">
+      </div>
+      <div class="col">
+        <label class="form-label text-secondary small">変換後（進数）</label>
+        <input type="number" id="calc-to" class="form-control bg-dark text-white border-secondary" value="2">
+      </div>
+    </div>
+    <button class="btn btn-info w-100 fw-bold py-2 text-white" onclick="runConversion()">解説付きで変換</button>
+    <div id="calc-result" class="mt-4 p-3 bg-dark rounded border border-secondary small d-none" style="max-height: 250px; overflow-y: auto;"></div>
+  </div>
+
+  <!-- 問題モード -->
+  <div id="quiz-screen" class="screen">
+    <h4 class="mb-2"><i class="fa-solid fa-circle-question text-success"></i> 問題モード</h4>
+    <div class="row g-2">
+      <div class="col-7">
+        <div class="row g-1 mb-2">
+          <div class="col-6">
+            <label style="font-size:9px; color:#aaa;">元進数</label>
+            <input type="number" id="quiz-from-base" class="form-control form-control-sm bg-dark text-white p-1" value="10">
+          </div>
+          <div class="col-6">
+            <label style="font-size:9px; color:#aaa;">先進数</label>
+            <input type="number" id="quiz-to-base" class="form-control form-control-sm bg-dark text-white p-1" value="2">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-success w-100 mb-2" style="font-size:11px;" onclick="generateCustomQuiz()">この設定で問題作成</button>
+        <div class="p-2 bg-dark rounded border border-success text-center mb-2" style="min-height:55px; display:flex; align-items:center; justify-content:center;">
+          <span id="quiz-question" class="text-success fw-bold" style="font-size:12px;">ボタンを押してね</span>
+        </div>
+        <div class="mb-2">
+          <input type="text" id="quiz-answer" class="form-control form-control-sm bg-dark text-white text-center fw-bold" placeholder="答えを入力">
+        </div>
+        <button class="btn btn-success btn-sm w-100 fw-bold py-1" onclick="checkQuizAnswer()">回答を送信</button>
+      </div>
+
+      <div class="col-5" style="border-left: 1px solid #444; padding-left: 8px;">
+        <div class="bg-dark p-1 rounded border border-secondary mb-2">
+          <div id="calc-pad-screen" class="mb-1">0</div>
+          <div class="row g-1 calc-pad">
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('7')">7</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('8')">8</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('9')">9</button></div>
+            <div class="col-3"><button class="btn btn-danger btn-sm" onclick="pressPad('C')">C</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('4')">4</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('5')">5</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('6')">6</button></div>
+            <div class="col-3"><button class="btn btn-warning btn-sm text-dark" onclick="pressPad('/')">/</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('1')">1</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('2')">2</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('3')">3</button></div>
+            <div class="col-3"><button class="btn btn-warning btn-sm text-dark" onclick="pressPad('*')">*</button></div>
+            <div class="col-3"><button class="btn btn-secondary btn-sm" onclick="pressPad('0')">0</button></div>
+            <div class="col-3"><button class="btn btn-warning btn-sm text-dark" onclick="pressPad('-')">-</button></div>
+            <div class="col-3"><button class="btn btn-warning btn-sm text-dark" onclick="pressPad('+')">+</button></div>
+            <div class="col-3"><button class="btn btn-info btn-sm text-white" onclick="pressPad('=')">=</button></div>
+          </div>
+        </div>
+        <textarea id="quiz-memo" class="form-control form-control-sm bg-dark text-white" rows="2" style="font-size:10px; resize:none;" placeholder="計算用メモ..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- パズル（ゲーム）モード -->
+  <div id="game-screen" class="screen active">
+    <div class="d-flex justify-content-between align-items-center text-dark px-1 mb-1">
+      <div class="small fw-bold" style="min-width:110px;">
+        <span id="fever-text" class="badge bg-secondary">NORMAL</span>
+        MY:<span id="mytsum-name-display" class="fw-normal">🐱</span>
+      </div>
+      <span class="fw-bold">SCORE: <span id="game-score" class="text-primary fs-5">0</span></span>
+      <span class="badge bg-danger" style="font-size:12px;">⏱️ <span id="game-timer">60</span>s</span>
+    </div>
+    
+    <div class="px-1 mb-1 text-dark small fw-bold">
+      FEVER GAUGE
+      <div class="gauge-container"><div id="fever-bar" class="gauge-bar bg-warning"></div></div>
+    </div>
+
+    <canvas id="game-canvas" width="380" height="340"></canvas>
+
+    <div class="game-control-panel text-dark">
+      <div class="d-flex justify-content-between mb-2 small fw-bold">
+        <div>📦 破壊箱: <span id="live-session-boxes" class="text-danger">0</span> 個</div>
+        <div>🪙 コイン: <span id="live-session-coins" class="text-warning">0</span> 枚</div>
+      </div>
+
+      <div class="row g-2 align-items-center">
+        <div class="col-4">
+          <button class="btn btn-dark btn-sm w-100 py-2 mb-1" style="font-size:11px;" onclick="shuffleTsums()">🌀 シャッフル</button>
+          <button class="btn btn-warning btn-sm w-100 py-2 text-dark fw-bold" style="font-size:11px;" onclick="openMyTsumSetup()"><i class="fa-solid fa-gear"></i> ツム構成</button>
+        </div>
+        <div class="col-4">
+          <button id="start-game-btn" class="btn btn-danger btn-sm w-100 fw-bold d-flex flex-column align-items-center justify-content-center" style="height:64px; font-size:12px;" onclick="tryStartGame()">
+            <span>スタート</span>
+            <span style="font-size:9px; opacity:0.8;">(❤️1消費)</span>
+          </button>
+        </div>
+        <div class="col-4 text-center">
+          <button id="skill-action-btn" class="btn btn-secondary fw-bold w-100 d-flex flex-column align-items-center justify-content-center border-2" style="height:64px; border-radius:10px; font-size:11px;" onclick="activateSkill()" disabled>
+            <span id="skill-btn-icon" style="font-size:18px; line-height:1;">🐱</span>
+            <span>SKILL</span>
+            <span id="skill-percent-text" style="font-size:9px; opacity:0.8;">0%</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- マイツム選択画面 -->
+  <div id="mytsum-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-user-gear text-info"></i> マイツムセット</h4>
+    <p class="small text-secondary"><strong>1番最初に選んだツムが「マイツム」</strong>になり、固有能力を発揮します！</p>
+    <div class="p-2 mb-2 bg-dark rounded border border-info text-info small">選択済み: <span id="selected-count">0</span> / 5 種類</div>
+    <div id="mytsum-selector-container" class="p-2 bg-dark rounded mb-3"></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-secondary w-50" onclick="switchMode('game', null)">戻る</button>
+      <button class="btn btn-info w-50 text-white fw-bold" onclick="saveMyTsumSetup()">セットする</button>
+    </div>
+  </div>
+
+  <!-- ガチャセレクト -->
+  <div id="gacha-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-boxes-stacked text-warning"></i> ガチャセレクト</h4>
+    <p class="small text-secondary mb-2">※レベル20（最大）に達したツム、またはレベル固定ツムはガチャから出なくなります。</p>
+    
+    <div class="gacha-card text-center mb-3 border-danger" style="background: #47323b;">
+      <h6 class="text-danger fw-bold">🔥 期間限定イベントガチャ</h6>
+      <p class="small text-secondary mb-1">排出対象: アダム・エバ・蛇・木</p>
+      <p class="small text-warning mb-1"><i class="fa-solid fa-ticket text-info"></i> 1 イベントチケット</p>
+      <button id="btn-gacha-event" class="btn btn-danger btn-sm w-100 fw-bold" onclick="triggerGacha('event')">イベントガチャを引く</button>
+    </div>
+    
+    <div class="gacha-card text-center mb-3">
+      <h6>ノーマルガチャ</h6>
+      <p class="small text-warning mb-1">🪙 1,000 コイン</p>
+      <button id="btn-gacha-normal" class="btn btn-warning btn-sm w-100 text-dark fw-bold" onclick="triggerGacha('normal')">引く</button>
+    </div>
+    
+    <div class="gacha-card text-center mb-3 border-info">
+      <h6 class="text-info">プレミアムガチャ</h6>
+      <p class="small text-warning mb-1">🪙 10,000 コイン</p>
+      <button id="btn-gacha-premium" class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="triggerGacha('premium')">引く</button>
+    </div>
+  </div>
+
+  <!-- データ同期・引き継ぎ画面 -->
+  <div id="sync-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-key text-warning"></i> データ同期・アカウントリンク</h4>
+    
+    <div class="p-3 mb-3 text-center rounded border border-success" style="background: #1c2e24;">
+      <p class="mb-2 small text-success fw-bold">➕ 別アカウントで新しく始めたい場合</p>
+      <button class="btn btn-success btn-sm w-100 fw-bold" onclick="createNewAccountAction()">✨ 新しいアカウントコードを新規発行する</button>
+    </div>
+
+    <div class="bg-dark p-3 rounded mb-3 border border-secondary">
+      <p class="input-group-text-custom small text-secondary mb-1">現在あなたのアカウントコード</p>
+      <h5 class="text-info fw-bold" id="sync-current-code">------</h5>
+      <p class="small text-muted" style="font-size:10px;">※このコードを他端末で入力するか、別の既存コードを入れることでデータを完全に切り替え連動できます。</p>
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label text-white small">リンク・ロードしたいアカウントコードを入力</label>
+      <input type="text" id="sync-input-code" class="form-control bg-dark text-white border-warning fw-bold text-center" placeholder="例: ST-123456 または GOD777">
+    </div>
+    <button class="btn btn-warning w-100 fw-bold text-dark py-2" onclick="processAccountSync()">指定アカウントにリンクする</button>
+    <button class="btn btn-secondary w-100 btn-sm mt-3" onclick="switchMode('game', document.getElementById('nav-game'))">パズルに戻る</button>
+  </div>
+
+  <!-- 図鑑モード -->
+  <div id="book-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-book-open text-info"></i> スキル図鑑・能力表</h4>
+    <div id="book-list-container"></div>
+  </div>
+
+  <!-- 任務モード -->
+  <div id="mission-screen" class="screen">
+    <h4 class="mb-3"><i class="fa-solid fa-trophy text-danger"></i> イベント激ムズミッション</h4>
+    <div id="missions-list-container"></div>
+  </div>
+
+  <!-- ナビゲーションバー -->
+  <div class="nav-bar">
+    <div id="nav-calc" class="nav-item" onclick="switchMode('calc', this)"><i class="fa-solid fa-calculator"></i>計算</div>
+    <div id="nav-quiz" class="nav-item" onclick="switchMode('quiz', this)"><i class="fa-solid fa-circle-question"></i>問題</div>
+    <div id="nav-game" class="nav-item active" onclick="switchMode('game', this)"><i class="fa-solid fa-gamepad"></i>パズル</div>
+    <div id="nav-gacha" class="nav-item" onclick="switchMode('gacha', this)"><i class="fa-solid fa-boxes-stacked"></i>ガチャ</div>
+    <div id="nav-book" class="nav-item" onclick="switchMode('book', this)"><i class="fa-solid fa-book-open"></i>図鑑</div>
+    <div id="nav-mission" class="nav-item" onclick="switchMode('mission', this)"><i class="fa-solid fa-trophy"></i>任務</div>
+  </div>
+
+</div>
+
+<script>
+  let currentUser = null;
+  let tempSelectedTsums = [];
+  let currentClearedCounts = {};
+  let gachaLock = false;
+  let isDragging = false;
+  let selectedTsums = [];
+  
+  let sessionCoins = 0;
+  let sessionSkills = 0;
+  let sessionFevers = 0;
+  let godTsumsClearedThisPlay = 0;
+  let boxOpenedCount = 0;
+
+  const DEFAULT_MISSIONS = [
+    { id: "m1", text: "🐱 ねこを累計500個消去しよう", goal: 500, reward: 25000, type: "coin" },
+    { id: "m2", text: "1プレイで圧倒的高得点『30,000点』以上を達成", goal: 30000, reward: 15, type: "ticket" },
+    { id: "m3", text: "パズルで累計25,000コインを稼ぎ出そう", goal: 25000, reward: 100000, type: "coin" },
+    { id: "m4", text: "固有スキルを1プレイで5回、累計50回発動！", goal: 50, reward: 20, type: "ticket" },
+    { id: "m5", text: "1プレイでフィーバーに連続5回以上突入せよ", goal: 5, reward: 50000, type: "coin" },
+    { id: "m6", text: "神の領域ツムを気合で累計30個消去！", goal: 30, reward: 30, type: "ticket" },
+    { id: "m7", text: "計算モードで2進数や16進数を10回変換解説する", goal: 10, reward: 15000, type: "coin" },
+    { id: "m8", text: "問題モードで難解クイズに15回正解する", goal: 15, reward: 10, type: "ticket" },
+    { id: "m9", text: "パズル中に滅多に出ない『神の箱🎁』を累計15個破壊する", goal: 15, reward: 80000, type: "coin" },
+    { id: "m10", text: "プレミアムガチャツムをどれでも累計400個超消去", goal: 400, reward: 25, type: "ticket" }
+  ];
+
+  const tsumDefinition = {
+    '🐱 ねこ': { emoji: '🐱', color: '#ff6b6b', tier: 'init', skill: 'スコア追加', desc: 'スコアを直接追加する！' },
+    '🐶 犬': { emoji: '🐶', color: '#4dadf7', tier: 'init', skill: 'ボム特殊生成', desc: '盤面に特殊ボムを呼び出す！' },
+    '🐼 パンダ': { emoji: '🐼', color: '#ffd43b', tier: 'init', skill: 'タイム追加', desc: 'プレイ残り時間を追加する！' },
+    '🐰 ウサギ': { emoji: '🐰', color: '#ff8787', tier: 'init', skill: '下部消去', desc: '画面の下の方にたまっているツムを消去！' },
+    '🌙 月': { emoji: '🌙', color: '#be4bdb', tier: 'init', skill: 'コインゲット', desc: 'コインを直接ゲットする！' },
+    '👤 アダム': { emoji: '👤', color: '#22b8cf', tier: 'event_only', skill: '知恵の木の実', desc: '50%で知恵の木の実が1~3個降る。タップでコイン1.1倍' },
+    '🎀 エバ': { emoji: '🎀', color: '#f06595', tier: 'human', skill: '半分消去', desc: '画面内のツムをピッタリ半分消し去る！' },
+    '🐰 鳥': { emoji: '🐦', color: '#94d82d', tier: 'init', skill: '中央消去', desc: '画面中央に集まるツムを狙い撃ちで消去！' },
+    '😊 ﾆｺﾆｺ': { emoji: '😊', color: '#fff0f6', tier: 'premium', skill: '確率全消し', desc: '確率で、画面内のすべてのツムを全消去！' },
+    '🧪 理科': { emoji: '🧪', color: '#63e6be', tier: 'premium', skill: '2色変化', desc: '盤面の通常ツムをマイツムともう1種に確率変化（Lvで確率UP！）' },
+    '🦁 ﾗｲｵﾝ': { emoji: '🦁', color: '#ff922b', tier: 'premium', skill: 'スコア10倍', desc: '一定時間、獲得する全てのスコアが「10倍」になる！' },
+    '🐅 トラ': { emoji: '🐅', color: '#fcc419', tier: 'premium', skill: '複数種消去', desc: '確率で、場にある「1〜3種類」のツムをランダム消去！' },
+    '🌳 木': { emoji: '🌳', color: '#8ce99a', tier: 'god', skill: '木連動消去', desc: '5秒間、木のツムを消すと周りのツムも消えるようになる' },
+    '🎵 音楽': { emoji: '🎵', color: '#74c0fc', tier: 'premium', skill: '同種まとめ消し', desc: '【LV固定】場にある同じ種類のツムを一箇所にまとめて消去！', noLevel: true },
+    '🎵 ぐるぐる': { emoji: '🎵', color: '#da77f2', tier: 'premium', skill: '1種全消し', desc: '【LV固定】選ばれた「1種類」のツムを画面からすべて消し去る！', noLevel: true },
+    '🐻 熊': { emoji: '🐻', color: '#a9e34b', tier: 'premium', skill: '爪痕消去', desc: '【LV固定】画面に巨大な十字の爪痕が現れ、範囲内のツムを消去！', noLevel: true },
+    '🃏 ｲｶｻﾏ': { emoji: '🃏', color: '#ced4da', tier: 'premium', skill: 'コイン倍率変動', desc: '【LV固定】ゲーム終了時に所持コイン数を0.5〜1.5倍に必ず変動させる！', noLevel: true },
+    '🐨 コアラ': { emoji: '🐨', color: '#a5d8ff', tier: 'premium', skill: 'ロングフィーバー', desc: '【LV固定】発動した瞬間から20秒間強制的にフィーバー突入！', noLevel: true },
+    '🐍 蛇': { emoji: '🐍', color: '#20c997', tier: 'god', skill: 'S字消去', desc: 'S字にツムを消す。', noLevel: true },
+    '👑 創造主(神)': { emoji: '✨', color: '#fff9db', tier: 'secret', skill: '完全全リンク', desc: '【LV固定・最高神】10秒間、どんな種類のツム同士でもすべて繋げて消せる！', noLevel: true }
+  };
+
+  let canvas, ctx;
+  let tsums = []; let items = []; let isPlaying = false; let score = 0;
+  let gameInterval = null; let timeLeft = 60;
+  let feverGauge = 0; let isFever = false; let feverTimer = 0; let skillGauge = 0;
+  const skillMaxAdjusted = 12;
+
+  const TSUM_RADIUS = 21; const GRAVITY = 0.85; const BOUNCE = 0.12; const BASE_CONNECT_DISTANCE = 68;
+
+  let lionBuffTimer = 0; let moneyBuffTimer = 0; let godLinkTimer = 0; let treeTreeBuffTimer = 0;
+  let particles = []; let padExpression = "";
+
+  window.addEventListener('DOMContentLoaded', () => {
+    canvas = document.getElementById('game-canvas'); ctx = canvas.getContext('2d');
+    canvas.addEventListener('mousedown', (e) => { isDragging = true; pointerDown(getMousePos(e)); });
+    canvas.addEventListener('mousemove', (e) => { if(isDragging) pointerMove(getMousePos(e)); });
+    canvas.addEventListener('mouseup', () => { isDragging = false; pointerUp(); });
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDragging = true; pointerDown(getTouchPos(e)); }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if(isDragging) pointerMove(getTouchPos(e)); }, {passive: false});
+    canvas.addEventListener('touchend', (e) => { e.preventDefault(); isDragging = false; pointerUp(); }, {passive: false});
+    
+    loadLocalUserData(); 
+    initGameEngine();
+    
+    setInterval(() => { 
+      if (currentUser && currentUser.hearts < 5 && !isPlaying) { 
+        currentUser.hearts++; 
+        saveLocalUserData(); 
+        updateHeaderUI(); 
+      } 
+    }, 60000); 
+  });
+
+  function loadLocalUserData() {
+    let currentActiveCode = localStorage.getItem("shinsu_tsum_active_code");
+    if (!currentActiveCode || currentActiveCode.trim() === "") {
+      currentActiveCode = "ST-" + Math.floor(Math.random() * 900000 + 100000);
+      localStorage.setItem("shinsu_tsum_active_code", currentActiveCode);
+    }
+
+    let data = localStorage.getItem("shinsu_user_db_" + currentActiveCode);
+    if (!data) {
+      let freshData = createNewAccountData(currentActiveCode);
+      localStorage.setItem("shinsu_user_db_" + currentActiveCode, JSON.stringify(freshData));
+      currentUser = freshData;
+    } else {
+      currentUser = JSON.parse(data);
+    }
+
+    currentUser.missions = DEFAULT_MISSIONS;
+    if (!currentUser.tsumLevels) currentUser.tsumLevels = {};
+    if (!currentUser.ownedTsums || currentUser.ownedTsums.length === 0) {
+      currentUser.ownedTsums = ['🐱 ねこ', '🐶 犬', '🐼 パンダ', '🐰 ウサギ', '🌙 月'];
+    }
+    currentUser.selectedTsums = (currentUser.selectedTsums || []).filter(t => tsumDefinition[t]);
+    while(currentUser.selectedTsums.length < 5) {
+      let fallback = ['🐱 ねこ', '🐶 犬', '🐼 パンダ', '🐰 ウサギ', '🌙 月'].find(x => !currentUser.selectedTsums.includes(x));
+      currentUser.selectedTsums.push(fallback || '🐱 ねこ');
+    }
+    refreshAllGameUI();
+  }
+
+  function createNewAccountData(code) {
+    return { 
+      accountCode: code, 
+      userName: "プレイヤー_" + code.slice(-4), 
+      hearts: 5, 
+      coins: 15000, 
+      tickets: 5, 
+      ownedTsums: ['🐱 ねこ', '🐶 犬', '🐼 パンダ', '🐰 ウサギ', '🌙 月'], 
+      selectedTsums: ['🐱 ねこ', '🐶 犬', '🐼 パンダ', '🐰 ウサギ', '🌙 月'], 
+      tsumLevels: {'🐱 ねこ': 1, '🐶 犬': 1, '🐼 パンダ': 1, '🐰 ウサギ': 1, '🌙 月': 1}, 
+      tsumExp: {}, 
+      progress: {}, 
+      missions: DEFAULT_MISSIONS 
+    };
+  }
+
+  function generateGodAccountData(code) {
+    let account = {
+      accountCode: code,
+      userName: "👑 神越管理者 👑",
+      hearts: 99,
+      coins: 9999999,
+      tickets: 999,
+      ownedTsums: Object.keys(tsumDefinition),
+      selectedTsums: ['👑 創造主(神)', '🐍 蛇', '🌳 木', '🧪 理科', '🦁 ﾗｲｵﾝ'],
+      tsumLevels: {},
+      tsumExp: {},
+      progress: {},
+      missions: DEFAULT_MISSIONS
+    };
+    Object.keys(tsumDefinition).forEach(key => { account.tsumLevels[key] = 20; });
+    return account;
+  }
+
+  function saveLocalUserData() { 
+    if (!currentUser || !currentUser.accountCode) return;
+    localStorage.setItem("shinsu_tsum_active_code", currentUser.accountCode);
+    localStorage.setItem("shinsu_user_db_" + currentUser.accountCode, JSON.stringify(currentUser)); 
+  }
+  
+  function refreshAllGameUI() { updateHeaderUI(); renderBook(); renderMissions(); updateSkillButtonUI(); updateFeverUI(); updateGachaButtonsState(); }
+
+  function manageAccountMenu() {
+    document.getElementById('sync-current-code').innerText = currentUser.accountCode;
+    document.getElementById('sync-input-code').value = "";
+    switchMode('sync', null);
+  }
+
+  function createNewAccountAction() {
+    let newCode = "ST-" + Math.floor(Math.random() * 900000 + 100000);
+    let freshAccount = createNewAccountData(newCode);
+    localStorage.setItem("shinsu_user_db_" + newCode, JSON.stringify(freshAccount));
+    localStorage.setItem("shinsu_tsum_active_code", newCode);
+    currentUser = Object.assign({}, freshAccount);
+    saveLocalUserData();
+    refreshAllGameUI();
+    switchMode('game', document.getElementById('nav-game'));
+    alert(`🎉 新規アカウント作成に成功しました！\n新しいコード: [ ${newCode} ]`);
+  }
+
+  function processAccountSync() {
+    let input = document.getElementById('sync-input-code').value;
+    if (!input || input.trim() === "") { alert("コードを入力してください。"); return; }
+    let targetCode = input.trim().toUpperCase();
+    if (targetCode === currentUser.accountCode) { alert("現在の自分のコードと同じです！"); return; }
+    let confirmOverwrite = confirm(`アカウントを切り替えますか？\n対象コード: [ ${targetCode} ]`);
+    if (!confirmOverwrite) return;
+
+    let targetDataStr = localStorage.getItem("shinsu_user_db_" + targetCode);
+    let loadedAccount = null;
+
+    if (targetDataStr) {
+      loadedAccount = JSON.parse(targetDataStr);
+    } else {
+      if (targetCode.includes("GOD") || targetCode.includes("777") || targetCode.includes("CHEAT")) {
+        loadedAccount = generateGodAccountData(targetCode);
+      } else {
+        loadedAccount = createNewAccountData(targetCode);
+      }
+      localStorage.setItem("shinsu_user_db_" + targetCode, JSON.stringify(loadedAccount));
+    }
+
+    localStorage.setItem("shinsu_tsum_active_code", targetCode);
+    currentUser = Object.assign({}, loadedAccount);
+    saveLocalUserData(); 
+    refreshAllGameUI();
+    switchMode('game', document.getElementById('nav-game'));
+    alert(`🎉 アカウント切り替え完了！`);
+  }
+
+  function updateHeaderUI() {
+    if(!currentUser) return;
+    document.getElementById('header-username').innerText = currentUser.userName;
+    document.getElementById('header-account-code').innerText = currentUser.accountCode;
+    document.getElementById('header-hearts').innerText = currentUser.hearts;
+    document.getElementById('header-coins').innerText = currentUser.coins.toLocaleString();
+    document.getElementById('header-tickets').innerText = currentUser.tickets;
+    const primaryTsum = currentUser.selectedTsums[0] || '🐱 ねこ';
+    const def = tsumDefinition[primaryTsum] || { emoji: '🐱' };
+    document.getElementById('mytsum-name-display').innerText = def.emoji;
+    document.getElementById('skill-btn-icon').innerText = def.emoji;
+  }
+
+  function changeNamePrompt() {
+    const name = prompt("新しい名前を入力してください:", currentUser.userName);
+    if(name && name.trim() !== "") { currentUser.userName = name.trim(); saveLocalUserData(); updateHeaderUI(); }
+  }
+
+  function switchMode(mode, element) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-bar .nav-item').forEach(n => n.classList.remove('active'));
+    const targetScreen = document.getElementById(`${mode}-screen`);
+    if(targetScreen) targetScreen.classList.add('active');
+    if(element) element.classList.add('active');
+    if (mode === 'game') initGameEngine();
+    if (mode === 'gacha') updateGachaButtonsState();
+  }
+
+  function getTsumLevel(name) { if (tsumDefinition[name] && tsumDefinition[name].noLevel) return 1; return currentUser.tsumLevels[name] || 1; }
+  function getModifiedValue(baseValue, name) {
+    let lv = getTsumLevel(name); if (lv <= 1) return baseValue;
+    return Math.ceil(baseValue * Math.pow(1.5, lv - 1));
+  }
+
+  // 計算モード
+  function runConversion() {
+    const val = document.getElementById('calc-input').value.trim();
+    const fromBase = parseInt(document.getElementById('calc-from').value);
+    const textToBase = parseInt(document.getElementById('calc-to').value);
+    const resultDiv = document.getElementById('calc-result');
+    if(!val) return;
+    try {
+      const decimalValue = parseInt(val, fromBase); 
+      if (isNaN(decimalValue)) { alert("入力値の進数表現に不整合があります。"); return; }
+      const convertedResult = decimalValue.toString(textToBase).toUpperCase();
+      let stepsHtml = `<h5>🔄 変換結果: <b class="text-info">${convertedResult}</b></h5><hr style="border-color:#525269;">`;
+      stepsHtml += `<p class="mb-1 text-secondary">【ステップ1】元の数を10進数にします：</p>`;
+      stepsHtml += `<div class="bg-black p-2 rounded mb-2 text-warning">${val}(${fromBase}進数) ➔ <b>${decimalValue}</b>(10進数)</div>`;
+      stepsHtml += `<p class="mb-1 text-secondary">【ステップ2】10進数を${textToBase}進数で割り算していきます：</p><div class="bg-black p-2 rounded text-success">`;
+      let currentNum = decimalValue; let logs = [];
+      if (currentNum === 0) { logs.push(`0 ÷ ${textToBase} = 0 ... <b>0</b>`); } else {
+        while (currentNum > 0) {
+          let rem = currentNum % textToBase; let remStr = rem.toString(textToBase).toUpperCase();
+          logs.push(`${currentNum} ÷ ${textToBase} = ${Math.floor(currentNum / textToBase)} ... 余り <b>${remStr}</b>`);
+          currentNum = Math.floor(currentNum / textToBase);
+        }
+      }
+      stepsHtml += logs.join('<br>') + `</div>`;
+      resultDiv.innerHTML = stepsHtml; resultDiv.classList.remove('d-none'); updateMissionProgress("m7", 1);
+    } catch(e) { alert("計算エラーが発生しました。"); }
+  }
+
+  function pressPad(btn) {
+    const scr = document.getElementById('calc-pad-screen');
+    if (btn === 'C') { padExpression = ""; scr.innerText = "0"; } 
+    else if (btn === '=') {
+      try { let res = Function('return ' + padExpression)(); scr.innerText = res; padExpression = String(res); } catch(e) { scr.innerText = "Error"; padExpression = ""; }
+    } else { padExpression += btn; scr.innerText = padExpression; }
+  }
+
+  let quizAns = "", quizFrom = 10, quizTo = 2;
+  function generateCustomQuiz() {
+    quizFrom = parseInt(document.getElementById('quiz-from-base').value)||10;
+    quizTo = parseInt(document.getElementById('quiz-to-base').value)||2;
+    const num = Math.floor(Math.random() * 20) + 5; quizAns = num.toString(quizTo).toUpperCase();
+    document.getElementById('quiz-question').innerText = `${quizFrom}進数「${num.toString(quizFrom).toUpperCase()}」➔ ${quizTo}進数`;
+  }
+  function checkQuizAnswer() {
+    const input = document.getElementById('quiz-answer').value.trim().toUpperCase();
+    if (input === quizAns) {
+      alert("正解！❤️+1"); document.getElementById('quiz-answer').value = ""; generateCustomQuiz();
+      currentUser.hearts++; saveLocalUserData(); updateHeaderUI(); updateMissionProgress("m8", 1);
+    } else { alert("不正解！"); generateCustomQuiz(); }
+  }
+
+  // パズルエンジン
+  function initGameEngine() {
+    if(!ctx) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#222222"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+    ctx.fillText("スタートボタンを押すとゲームが始まります", canvas.width / 2, canvas.height / 2);
+  }
+
+  function tryStartGame() {
+    if(isPlaying) return;
+    if(currentUser.hearts >= 1) { currentUser.hearts--; saveLocalUserData(); updateHeaderUI(); actualStartGame(); } 
+    else { alert("ハートが足りません！"); }
+  }
+
+  function actualStartGame() {
+    isPlaying = true; score = 0; feverGauge = 0; skillGauge = 0; isFever = false; feverTimer = 0; timeLeft = 60;
+    sessionCoins = 0; sessionSkills = 0; sessionFevers = 0; godTsumsClearedThisPlay = 0; boxOpenedCount = 0; currentClearedCounts = {};
+    items = []; particles = []; lionBuffTimer = 0; moneyBuffTimer = 0; godLinkTimer = 0; treeTreeBuffTimer = 0;
+    
+    document.getElementById('game-score').innerText = score;
+    document.getElementById('live-session-coins').innerText = sessionCoins;
+    document.getElementById('live-session-boxes').innerText = boxOpenedCount;
+    document.getElementById('start-game-btn').disabled = true;
+    updateSkillButtonUI(); updateFeverUI(); tsums = []; 
+    for(let i = 0; i < 38; i++) { spawnTsum(true, i); }
+    
+    if (gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(() => {
+      if (!isPlaying) return;
+      if (lionBuffTimer > 0) lionBuffTimer--; if (moneyBuffTimer > 0) moneyBuffTimer--;
+      if (godLinkTimer > 0) godLinkTimer--; if (treeTreeBuffTimer > 0) treeTreeBuffTimer--;
+      if(isFever) { feverTimer--; if(feverTimer <= 0) { isFever = false; updateFeverUI(); } } 
+      else { feverGauge = Math.max(0, feverGauge - 1.2); updateFeverUI(); }
+      timeLeft--;
+      if(timeLeft <= 0) {
+        timeLeft = 0; clearInterval(gameInterval); isPlaying = false; document.getElementById('start-game-btn').disabled = false;
+        let finalCoinsEarned = sessionCoins;
+        
+        if ((currentUser.selectedTsums[0] || '🐱 ねこ') === '🃏 ｲｶｻﾏ') {
+          let rate = parseFloat((Math.random() * 1.0 + 0.5).toFixed(2)); finalCoinsEarned = Math.round(finalCoinsEarned * rate);
+          alert(`🃏イカサマ効果：倍率 [ ${rate}倍 ] ➔ 結果 [ ${finalCoinsEarned}枚 ]`);
+        }
+        currentUser.coins += finalCoinsEarned;
+        
+        if (currentClearedCounts['🐱 ねこ']) updateMissionProgress("m1", currentClearedCounts['🐱 ねこ']);
+        if (score >= 30000) updateMissionProgress("m2", score);
+        if (finalCoinsEarned > 0) updateMissionProgress("m3", finalCoinsEarned);
+        if (sessionSkills > 0) updateMissionProgress("m4", sessionSkills);
+        if (sessionFevers >= 5) updateMissionProgress("m5", sessionFevers);
+        if (godTsumsClearedThisPlay > 0) updateMissionProgress("m6", godTsumsClearedThisPlay);
+        if (boxOpenedCount > 0) updateMissionProgress("m9", boxOpenedCount);
+        let premiumCount = 0;
+        for (let key in currentClearedCounts) { if(tsumDefinition[key] && tsumDefinition[key].tier === 'premium') premiumCount += currentClearedCounts[key]; }
+        if(premiumCount > 0) updateMissionProgress("m10", premiumCount);
+        saveLocalUserData(); updateHeaderUI(); renderMissions();
+        alert(`タイムアップ！\nスコア: ${score}点\n獲得: ${finalCoinsEarned}コイン`); return;
+      }
+      document.getElementById('game-timer').innerText = timeLeft;
+    }, 1000);
+
+    function loop() {
+      if(!isPlaying) return;
+      tsums.forEach(t => { t.vy += GRAVITY; t.x += t.vx; t.y += t.vy; t.vx *= 0.92; t.vy *= 0.92; });
+      for (let k = 0; k < 6; k++) { 
+        for (let i = 0; i < tsums.length; i++) {
+          for (let j = i + 1; j < tsums.length; j++) {
+            let t1 = tsums[i]; let t2 = tsums[j];
+            let r1 = t1.isBig ? TSUM_RADIUS * 1.7 : (t1.isBomb || t1.isSpecialItem ? 23 : TSUM_RADIUS);
+            let r2 = t2.isBig ? TSUM_RADIUS * 1.7 : (t2.isBomb || t2.isSpecialItem ? 23 : TSUM_RADIUS);
+            let dx = t2.x - t1.x; let dy = t2.y - t1.y; let dist = Math.sqrt(dx*dx + dy*dy); let minDist = r1 + r2;
+            if (dist < minDist) {
+              if (dist === 0) { t2.x += 1; dist = 1; dx = 1; }
+              let overlap = minDist - dist; let nx = dx / dist; let ny = dy / dist;
+              t1.x -= nx * overlap * 0.5; t1.y -= ny * overlap * 0.5;
+              t2.x += nx * overlap * 0.5; t2.y += ny * overlap * 0.5;
+              let kx = t1.vx - t2.vx; let ky = t1.vy - t2.vy; let vn = kx * nx + ky * ny;
+              if (vn > 0) { let impulse = 2 * vn / 2; t1.vx -= impulse * nx * (1 + BOUNCE) * 0.5; t1.vy -= impulse * ny * (1 + BOUNCE) * 0.5; t2.vx += impulse * nx * (1 + BOUNCE) * 0.5; t2.vy += impulse * ny * (1 + BOUNCE) * 0.5; }
+            }
+          }
+        }
+      }
+      tsums.forEach(t => {
+        let r = t.isBig ? TSUM_RADIUS * 1.7 : (t.isBomb || t.isSpecialItem ? 23 : TSUM_RADIUS);
+        if (t.x < r) { t.x = r; t.vx *= -BOUNCE; } else if (t.x > canvas.width - r) { t.x = canvas.width - r; t.vx *= -BOUNCE; }
+        if (t.y > canvas.height - r) { t.y = canvas.height - r; t.vy *= -BOUNCE; t.vx *= 0.7; } else if (t.y < -100) { t.y = -100; }
+      });
+      particles.forEach((p, idx) => { p.x += p.vx; p.y += p.vy; p.life--; if (p.life <= 0) particles.splice(idx, 1); });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if(selectedTsums.length > 1) {
+        ctx.beginPath(); ctx.strokeStyle = isFever ? "#ff00ff" : "#00f0ff"; ctx.lineWidth = 6; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.moveTo(selectedTsums[0].x, selectedTsums[0].y);
+        for(let i=1; i<selectedTsums.length; i++) ctx.lineTo(selectedTsums[i].x, selectedTsums[i].y);
+        ctx.stroke();
+      }
+      tsums.forEach(t => {
+        let r = t.isBig ? TSUM_RADIUS * 1.7 : (t.isBomb || t.isSpecialItem ? 23 : TSUM_RADIUS);
+        ctx.save(); ctx.translate(t.x, t.y); ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+        if (t.isBomb) ctx.fillStyle = t.bombType === 'coin' ? "#b8860b" : t.bombType === 'time' ? "#0b5394" : "#333"; 
+        else if (t.isSpecialItem) ctx.fillStyle = "#ffd700";
+        else ctx.fillStyle = t.color;
+        ctx.fill(); ctx.strokeStyle = t.selected ? "#fff" : "rgba(0,0,0,0.15)"; ctx.lineWidth = t.selected ? 4 : 1.5; ctx.stroke();
+        ctx.fillStyle = "white"; ctx.font = t.isBig ? "32px Arial" : "20px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(t.isBomb ? t.bombType === 'coin' ? '🪙' : t.bombType === 'time' ? '⏱️' : '💣' : t.emoji, 0, 0); ctx.restore();
+      });
+      particles.forEach(p => { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
+      requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  function spawnTsum(isInit = false, index = 0) {
+    let spawnX = (index > 0) ? ((index * 42) % (canvas.width - 40)) + 20 : Math.random() * (canvas.width - 60) + 30;
+    let spawnY = isInit ? -30 - (Math.floor(index / 8) * 45) : -30;
+    if (!isInit && Math.random() < 0.015) {
+      tsums.push({ x: spawnX, y: spawnY, vx: (Math.random()-0.5), vy: 0, name: '🎁 神の箱', emoji: '🎁', color: '#e64980', selected: false, isBig: false, isBomb: false }); return;
+    }
+    const my5 = currentUser.selectedTsums; let key = my5[Math.floor(Math.random() * my5.length)] || '🐱 ねこ';
+    let def = tsumDefinition[key] || { emoji: '🐱', color: '#ff6b6b' };
+    tsums.push({ x: spawnX, y: spawnY, vx: (Math.random()-0.5)*0.8, vy: 0, name: key, emoji: def.emoji, color: def.color, selected: false, isBig: (Math.random() < 0.04), isBomb: false });
+  }
+
+  function spawnBombAt(x, y, forceType = null) {
+    let type = forceType || (Math.random() < 0.65 ? 'normal' : Math.random() < 0.88 ? 'coin' : 'time');
+    let emoji = type === 'coin' ? '🪙' : type === 'time' ? '⏱️' : '💣';
+    tsums.push({ x: x, y: y, vx: (Math.random()-0.5)*2, vy: -2, name: '💣 ボム', emoji: emoji, color: '#333', selected: false, isBig: false, isBomb: true, bombType: type, bombEmoji: emoji });
+  }
+
+  function explodeBomb(bomb) {
+    let radius = 75; createExplosionParticles(bomb.x, bomb.y, bomb.bombType);
+    const myTsumName = currentUser.selectedTsums[0] || '🐱 ねこ';
+    tsums.forEach(t => {
+      let d = Math.sqrt((t.x - bomb.x)**2 + (t.y - bomb.y)**2);
+      if (d < radius && t !== bomb && !t.isBomb && !t.isSpecialItem) {
+        t.selected = true; if (t.name === myTsumName && skillGauge < skillMaxAdjusted) { skillGauge++; }
+      }
+    });
+    if (bomb.bombType === 'coin') sessionCoins += 100; else if (bomb.bombType === 'time') timeLeft += 3;
+    document.getElementById('live-session-coins').innerText = sessionCoins;
+
+    let count = tsums.filter(t => t.selected).length;
+    if (count > 0) {
+      let mult = isFever ? 3 : (lionBuffTimer > 0 ? 10 : 1); score += count * 120 * mult;
+      document.getElementById('game-score').innerText = score;
+      
+      tsums.forEach(t => { 
+        if (t.selected) {
+          if (t.name === '🎁 神の箱') { handleBoxOpen(); } else {
+            currentClearedCounts[t.name] = (currentClearedCounts[t.name] || 0) + 1;
+            if (tsumDefinition[t.name] && (tsumDefinition[t.name].tier === 'god' || tsumDefinition[t.name].tier === 'secret')) godTsumsClearedThisPlay++;
+            if (moneyBuffTimer > 0) sessionCoins += 2; else if (Math.random() < 0.45) sessionCoins += 1;
+          }
+        }
+      });
+      document.getElementById('live-session-coins').innerText = sessionCoins;
+    }
+    tsums = tsums.filter(t => !t.selected && t !== bomb);
+    updateSkillButtonUI(); while(tsums.length < 38) spawnTsum(false);
+  }
+
+  function handleBoxOpen() {
+    boxOpenedCount++; document.getElementById('live-session-boxes').innerText = boxOpenedCount;
+    let rand = Math.random();
+    if (rand < 0.01) { 
+      let targetGod = '👑 創造主(神)';
+      if (!currentUser.ownedTsums.includes(targetGod)) { currentUser.ownedTsums.push(targetGod); }
+      saveLocalUserData(); refreshAllGameUI();
+      alert(`🎁神の箱から1%の奇跡！\n【 ${targetGod} 】を完全獲得しました！`); 
+    } else {
+      let coinAmount = 5000; sessionCoins += coinAmount;
+      document.getElementById('live-session-coins').innerText = sessionCoins;
+      alert(`🎁神の箱から【 🪙 ${coinAmount} コイン 】を獲得！`);
+    }
+  }
+
+  function shuffleTsums() { if(!isPlaying) return; tsums.forEach(t => { t.vx = (Math.random()-0.5)*15; t.vy = -(Math.random()*8+5); }); }
+  function isPointerInsideTsum(pos, t) {
+    let r = t.isBig ? TSUM_RADIUS * 1.7 : (t.isBomb || t.isSpecialItem ? 23 : TSUM_RADIUS); return Math.sqrt((t.x - pos.x)**2 + (t.y - pos.y)**2) < (r + 14);
+  }
+
+  function pointerDown(pos) {
+    if(!isPlaying) return;
+    const clickedItemIdx = tsums.findIndex(t => t.isSpecialItem && Math.sqrt((t.x - pos.x)**2 + (t.y - pos.y)**2) < 26);
+    if (clickedItemIdx !== -1) {
+      createExplosionParticles(tsums[clickedItemIdx].x, tsums[clickedItemIdx].y, 'coin');
+      sessionCoins = Math.round(sessionCoins * 1.1);
+      document.getElementById('live-session-coins').innerText = sessionCoins;
+      tsums.splice(clickedItemIdx, 1); spawnTsum(false); return;
+    }
+    const clickedBomb = tsums.find(t => t.isBomb && Math.sqrt((t.x - pos.x)**2 + (t.y - pos.y)**2) < 26);
+    if (clickedBomb) { explodeBomb(clickedBomb); return; }
+    const t = tsums.find(t => !t.isBomb && !t.isSpecialItem && isPointerInsideTsum(pos, t));
+    if(t) { selectedTsums = [t]; t.selected = true; }
+  }
+
+  function pointerMove(pos) {
+    if(selectedTsums.length === 0) return;
+    const last = selectedTsums[selectedTsums.length - 1];
+    let baseTsum = selectedTsums.find(t => t.name !== '🎁 神の箱');
+    let allowedName = baseTsum ? baseTsum.name : null;
+    const t = tsums.find(t => {
+      if (t.isBomb || t.isSpecialItem || t.selected) return false;
+      let isMatch = (godLinkTimer > 0 || t.name === '🎁 神の箱' || last.name === '🎁 神の箱' || !allowedName || t.name === allowedName);
+      if (!isMatch) return false;
+      return (isPointerInsideTsum(pos, t) && Math.sqrt((t.x - last.x)**2 + (t.y - last.y)**2) < BASE_CONNECT_DISTANCE);
+    });
+    if(t) { selectedTsums.push(t); t.selected = true; }
+  }
+
+  function pointerUp() {
+    if(selectedTsums.length >= 3) {
+      let count = selectedTsums.length; selectedTsums.forEach(t => { if(t.isBig) count += 4; });
+      if (count >= 7) { let lastTsum = selectedTsums[selectedTsums.length - 1]; setTimeout(() => { spawnBombAt(lastTsum.x, lastTsum.y); }, 50); }
+      let mult = isFever ? 3 : (lionBuffTimer > 0 ? 10 : 1); score += count * 100 * mult;
+      document.getElementById('game-score').innerText = score;
+      
+      let hasTree = false; let treeTriggerPositions = [];
+      selectedTsums.forEach(t => {
+        if (t.name === '🎁 神の箱') { handleBoxOpen(); return; }
+        if (t.name === '🌳 木') { hasTree = true; treeTriggerPositions.push({x: t.x, y: t.y}); }
+        currentClearedCounts[t.name] = (currentClearedCounts[t.name] || 0) + 1;
+        if (tsumDefinition[t.name] && (tsumDefinition[t.name].tier === 'god' || tsumDefinition[t.name].tier === 'secret')) godTsumsClearedThisPlay++;
+        if(t.name === (currentUser.selectedTsums[0] || '🐱 ねこ') && skillGauge < skillMaxAdjusted) skillGauge++;
+        if (moneyBuffTimer > 0) { sessionCoins += 2; } else { if (Math.random() < 0.45) { sessionCoins += 1; } }
+      });
+
+      if (treeTreeBuffTimer > 0 && hasTree) {
+        treeTriggerPositions.forEach(pos => {
+          let bombRadius = 60; createExplosionParticles(pos.x, pos.y, 'normal');
+          tsums.forEach(t => {
+            if (!t.selected && !t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱') {
+              let d = Math.sqrt((t.x - pos.x)**2 + (t.y - pos.y)**2);
+              if (d < bombRadius) { t.selected = true; currentClearedCounts[t.name] = (currentClearedCounts[t.name] || 0) + 1; score += 50 * mult; }
+            }
+          });
+        });
+      }
+
+      document.getElementById('live-session-coins').innerText = sessionCoins;
+      if(!isFever) { feverGauge = Math.min(100, feverGauge + count * 2.5); if(feverGauge >= 100) triggerFever(); }
+      updateSkillButtonUI(); updateFeverUI(); tsums = tsums.filter(t => !t.selected); while(tsums.length < 38) spawnTsum(false);
+    } else { selectedTsums.forEach(t => t.selected = false); }
+    selectedTsums = [];
+  }
+
+  function triggerFever() { isFever = true; feverGauge = 100; feverTimer = 10; timeLeft += 5; sessionFevers++; updateFeverUI(); }
+  function updateFeverUI() {
+    const bar = document.getElementById('fever-bar'); const txt = document.getElementById('fever-text');
+    if(!bar || !txt) return;
+    if(isFever) { bar.style.width = (feverTimer * 10) + '%'; bar.className = "gauge-bar bg-danger"; txt.innerText = "🔥 FEVER 🔥"; } 
+    else { bar.style.width = feverGauge + '%'; bar.className = "gauge-bar bg-warning"; txt.innerText = "NORMAL"; }
+  }
+  
+  function updateSkillButtonUI() {
+    const btn = document.getElementById('skill-action-btn'); const pctTxt = document.getElementById('skill-percent-text');
+    if(!btn || !pctTxt) return;
+    const pct = Math.min(100, Math.floor((skillGauge / skillMaxAdjusted) * 100)); pctTxt.innerText = pct + "%";
+    if(pct >= 100 && isPlaying) { btn.disabled = false; btn.classList.add('skill-ready-glow'); } 
+    else { btn.disabled = true; btn.classList.remove('skill-ready-glow'); }
+  }
+
+  function activateSkill() {
+    if(!isPlaying || skillGauge < skillMaxAdjusted) return;
+    sessionSkills++; const myTsumName = currentUser.selectedTsums[0] || '🐱 ねこ';
+    let msg = ""; let mult = isFever ? 3 : (lionBuffTimer > 0 ? 10 : 1);
+
+    switch(myTsumName) {
+      case '👤 アダム':
+        if (Math.random() < 0.50) {
+          let numFruits = Math.floor(Math.random() * 3) + 1;
+          for (let i = 0; i < numFruits; i++) {
+            let sX = Math.random() * (canvas.width - 60) + 30;
+            tsums.push({ x: sX, y: -30 - (i*30), vx: (Math.random()-0.5), vy: 0, name: '🍏 知恵の実', emoji: '🍏', color: '#ffd700', selected: false, isBig: false, isBomb: false, isSpecialItem: true });
+          }
+          msg = `👤 アダム：成功！金りんごが ${numFruits} 個降臨！`;
+        } else { msg = `👤 アダム：失敗！`; }
+        break;
+
+      case '🎀 エバ':
+        let availableTsums = tsums.filter(t => !t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱');
+        let halfCount = Math.floor(availableTsums.length / 2);
+        availableTsums.sort(() => Math.random() - 0.5);
+        for(let i = 0; i < halfCount; i++) {
+          availableTsums[i].selected = true; score += 120 * mult;
+          currentClearedCounts[availableTsums[i].name] = (currentClearedCounts[availableTsums[i].name] || 0) + 1;
+          if (Math.random() < 0.45) sessionCoins++;
+        }
+        msg = `🎀 エバの誘惑：ツムを半分消去しました！`;
+        break;
+
+      case '🐍 蛇':
+        tsums.forEach(t => {
+          if (!t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱') {
+            let targetX = canvas.width / 2 + Math.sin((t.y / canvas.height) * Math.PI * 2.5) * (canvas.width * 0.35);
+            if (Math.abs(t.x - targetX) < 45) {
+              t.selected = true; score += 130 * mult;
+              currentClearedCounts[t.name] = (currentClearedCounts[t.name] || 0) + 1;
+              if (Math.random() < 0.45) sessionCoins++;
+            }
+          }
+        });
+        msg = "🐍 蛇：画面をS字に一括消去しました！";
+        break;
+
+      case '🌳 木':
+        let tSec = getModifiedValue(5, myTsumName); treeTreeBuffTimer = tSec; 
+        msg = `🌳 聖なる大樹：${tSec}秒間、木ツム消去に周囲連動爆発効果！`; 
+        break;
+
+      case '🧪 理科':
+        let rikaLv = getTsumLevel('🧪 理科'); let changeProbability = 0.1 * Math.pow(1.5, rikaLv - 1);
+        if (changeProbability > 1.0) changeProbability = 1.0;
+        if(Math.random() < changeProbability) {
+          let choices = currentUser.selectedTsums.filter(n => n !== '🧪 理科');
+          let secondaryColorName = choices[Math.floor(Math.random() * choices.length)] || '🐱 ねこ';
+          let defRika = tsumDefinition['🧪 理科']; let defSecond = tsumDefinition[secondaryColorName];
+          tsums.forEach(t => {
+            if(!t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱') {
+              if(Math.random() < 0.85) {
+                if(Math.random() < 0.5) { t.name = '🧪 理科'; t.emoji = defRika.emoji; t.color = defRika.color; } 
+                else { t.name = secondaryColorName; t.emoji = defSecond.emoji; t.color = defSecond.color; }
+              }
+            }
+          });
+          msg = `🧪 理科の実験：大成功！2色に変化しました！`;
+        } else { msg = `🧪 理科の実験：失敗！`; }
+        break;
+
+      case '🐱 ねこ': let baseScore = getModifiedValue(1000, myTsumName); score += baseScore; msg = `🐱 スコア+${baseScore}点！`; break;
+      case '🐶 犬': spawnBombAt(canvas.width/3, canvas.height/2, 'coin'); spawnBombAt(canvas.width*2/3, canvas.height/2, 'time'); msg = "🐶 特殊ボム生成！"; break;
+      case '🐼 パンダ': let addedTime = getModifiedValue(5, myTsumName); timeLeft += addedTime; msg = `🐼 タイム+${addedTime}秒！`; break;
+      case '🐰 ウサギ': tsums.forEach(t => { if (!t.isBomb && !t.isSpecialItem && t.y > canvas.height * 0.65 && t.name !== '🎁 神の箱') t.selected = true; }); msg = "🐰 下部ツム消去！"; break;
+      case '🌙 月': let bonusCoins = getModifiedValue(20, myTsumName); sessionCoins += bonusCoins; msg = `🌙 コイン+${bonusCoins}枚！`; break;
+      case '😊 ﾆｺﾆｺ': tsums.forEach(t => { if(!t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱') t.selected = true; }); msg = "😊 全消去！"; break; 
+      case '🦁 ﾗｲｵﾝ': let lSec = getModifiedValue(5, myTsumName); lionBuffTimer = lSec; msg = `🦁 ${lSec}秒間スコア10倍！`; break;
+      case '🎵 音楽': tsums.forEach(t => { if(!t.isBomb && !t.isSpecialItem && t.name !== '🎁 神の箱') t.selected = true; }); msg = "🎵 まとめ一括消去！"; break;
+      case '🐨 コアラ': triggerFever(); feverTimer = 20; msg = "🐨 20秒間ロングフィーバー！"; break;
+      case '👑 創造主(神)': godLinkTimer = 10; msg = "👑 10秒間、全ツム繋がり放題！"; break;
+      default: shuffleTsums(); msg = "🌀 シャッフル！"; break;
+    }
+
+    skillGauge = 0; updateSkillButtonUI(); updateFeverUI(); shuffleTsums();
+    tsums.forEach(t => { if(t.selected) { currentClearedCounts[t.name] = (currentClearedCounts[t.name] || 0) + 1; if (moneyBuffTimer > 0) sessionCoins += 2; else if (Math.random() < 0.45) sessionCoins += 1; } });
+    document.getElementById('live-session-coins').innerText = sessionCoins;
+    tsums = tsums.filter(t => !t.selected); while(tsums.length < 38) spawnTsum(false); alert(msg);
+  }
+
+  function openMyTsumSetup() { tempSelectedTsums = [...currentUser.selectedTsums]; switchMode('mytsum', null); renderMyTsumSelector(); }
+  function renderMyTsumSelector() {
+    const container = document.getElementById('mytsum-selector-container'); container.innerHTML = "";
+    document.getElementById('selected-count').innerText = tempSelectedTsums.length;
+    currentUser.ownedTsums.forEach(name => {
+      if (!tsumDefinition[name]) return; 
+      const isS = tempSelectedTsums.includes(name); const idx = tempSelectedTsums.indexOf(name);
+      const def = tsumDefinition[name] || { emoji: '❓', color: '#666' }; const lv = getTsumLevel(name);
+      const div = document.createElement('div'); div.className = `tsum-bubble ${isS ? 'selected' : ''}`; div.style.backgroundColor = def.color;
+      div.innerHTML = `${(isS && idx===0)?'<span class="badge bg-danger position-absolute top-0 start-0" style="font-size:7px;">MY</span>':''}${def.emoji}<br>
+        <span style="font-size:8px;">${name.split(' ')[1]||''}</span><br>
+        <span style="font-size:8px; color:#ffeb3b;">${def.noLevel ? '固定' : 'Lv:'+lv}</span>`;
+      div.onclick = function() {
+        if(tempSelectedTsums.includes(name)) tempSelectedTsums = tempSelectedTsums.filter(x => x !== name);
+        else { if(tempSelectedTsums.length >= 5) return; tempSelectedTsums.push(name); }
+        renderMyTsumSelector();
+      };
+      container.appendChild(div);
+    });
+  }
+  function saveMyTsumSetup() {
+    if(tempSelectedTsums.length !== 5) { alert("5種類選んでください！"); return; }
+    currentUser.selectedTsums = [...tempSelectedTsums]; saveLocalUserData(); switchMode('game', null); updateHeaderUI();
+  }
+
+  // ガチャプール取得（レベル固定・レベルMAX除外処理）
+  function getGachaPool(type) {
+    let initialPool = [];
+    if (type === 'event') {
+      initialPool = ['👤 アダム', '🎀 エバ', '🐍 蛇', '🌳 木'];
+    } else {
+      for (let key in tsumDefinition) {
+        let t = tsumDefinition[key];
+        if (t.tier === 'secret' || t.tier === 'event_only') continue; 
+        if (type === 'normal' && t.tier === 'init') initialPool.push(key);
+        else if (type === 'premium' && (t.tier === 'premium' || t.tier === 'human' || t.tier === 'god')) initialPool.push(key);
+      }
+    }
+    
+    // 【条件追加】レベルアップなしの固定ツム、およびレベルがすでに20のツムを徹底除外
+    return initialPool.filter(tsumName => {
+      if (tsumDefinition[tsumName].noLevel) return false; // レベル固定ツムはガチャプールから強制除外
+      let currentLv = currentUser.tsumLevels[tsumName] || 1;
+      return currentLv < 20; // レベル20未満のツムのみ許可
+    });
+  }
+
+  // ガチャボタン状態の表示更新（SOLD OUT制御）
+  function updateGachaButtonsState() {
+    const types = ['event', 'normal', 'premium'];
+    types.forEach(type => {
+      const pool = getGachaPool(type);
+      const btn = document.getElementById(`btn-gacha-${type}`);
+      if (!btn) return;
+
+      if (pool.length === 0) {
+        // プールが空っぽ＝すべて売り切れ状態
+        btn.disabled = true;
+        btn.innerText = "🛑 SOLD OUT (売り切れ)";
+        btn.classList.remove('btn-danger', 'btn-warning', 'btn-info');
+        btn.classList.add('btn-secondary');
+      } else {
+        btn.disabled = false;
+        if (type === 'event') {
+          btn.innerText = "イベントガチャを引く";
+          btn.className = "btn btn-danger btn-sm w-100 fw-bold";
+        } else if (type === 'normal') {
+          btn.innerText = "引く";
+          btn.className = "btn btn-warning btn-sm w-100 text-dark fw-bold";
+        } else if (type === 'premium') {
+          btn.innerText = "引く";
+          btn.className = "btn btn-info btn-sm w-100 text-white fw-bold";
+        }
+      }
+    });
+  }
+
+  function triggerGacha(type) {
+    if(gachaLock) return;
+    
+    let finalPool = getGachaPool(type);
+    if (finalPool.length === 0) {
+      alert("🎉 このガチャの対象ツムはすべて売り切れ（カンスト・固定）です！");
+      updateGachaButtonsState();
+      return;
+    }
+
+    let cost = type === 'normal' ? 1000 : 10000;
+    if (type === 'event') { if (currentUser.tickets < 1) { alert("🎫 チケット不足"); return; } } 
+    else { if (currentUser.coins < cost) { alert("コイン不足"); return; } }
+    
+    gachaLock = true;
+    if (type === 'event') { currentUser.tickets -= 1; } else { currentUser.coins -= cost; }
+    
+    let pulled = finalPool[Math.floor(Math.random() * finalPool.length)]; let logMessage = "";
+    if (!currentUser.ownedTsums.includes(pulled)) {
+      currentUser.ownedTsums.push(pulled); currentUser.tsumLevels[pulled] = 1;
+      logMessage = `🎉 新ツム獲得：【 ${pulled} 】をアンロック！`;
+    } else {
+      let currentLv = currentUser.tsumLevels[pulled] || 1; currentLv += 1;
+      currentUser.tsumLevels[pulled] = currentLv;
+      logMessage = `🔼 レベルアップ！【 ${pulled} 】Lv. ${currentLv}`;
+    }
+    
+    saveLocalUserData(); 
+    refreshAllGameUI(); 
+    alert(logMessage); 
+    gachaLock = false;
+  }
+
+  function renderBook() {
+    const container = document.getElementById('book-list-container'); if(!container) return; container.innerHTML = "";
+    for (let key in tsumDefinition) {
+      const def = tsumDefinition[key]; const isOwned = currentUser.ownedTsums.includes(key);
+      const itemDiv = document.createElement('div'); let cl = isOwned ? 'unlocked' : 'book-lock';
+      if (def.tier === 'human' || def.tier === 'event_only') cl += ' human-style';
+      if (def.tier === 'god' || def.tier === 'secret') cl += ' god-style';
+      itemDiv.className = `book-item ${cl}`;
+      itemDiv.innerHTML = `<div class="book-emoji">${isOwned ? def.emoji : '❓'}</div>
+        <div style="flex:1;">
+          <div class="d-flex justify-content-between">
+            <strong>${key} <span style="font-size:10px; color:#ffd43b;">(${def.noLevel ? "固定" : `Lv: ${getTsumLevel(key)}`})</span></strong>
+            <span class="badge bg-dark">${def.skill}</span>
+          </div>
+          <div style="font-size:10px; color:#ccc;">${def.desc}</div>
+        </div>`;
+      container.appendChild(itemDiv);
+    }
+  }
+
+  function renderMissions() {
+    const container = document.getElementById('missions-list-container'); if(!container) return; container.innerHTML = "";
+    currentUser.missions.forEach(m => {
+      const p = currentUser.progress[m.id] || 0; const isClaimed = p === -999; const isCleared = p >= m.goal;
+      const card = document.createElement('div'); card.className = "mission-card d-flex justify-content-between align-items-center";
+      let btn = isClaimed ? `<button class="btn btn-secondary btn-sm" disabled>完了</button>` : isCleared ? `<button class="btn btn-danger btn-sm" onclick="claimMission('${m.id}')">受取</button>` : `<button class="btn btn-outline-light btn-sm" disabled>進行中</button>`;
+      card.innerHTML = `<div><h6 class="mb-0 small">${m.text}</h6><small class="text-warning">報酬: ${m.type === 'ticket'?'🎫 ':'🪙'}${m.reward.toLocaleString()}</small></div><div class="text-end"><div>${isClaimed?'Done':p+'/'+m.goal}</div>${btn}</div>`;
+      container.appendChild(card);
+    });
+  }
+
+  function updateMissionProgress(id, amt) {
+    if (!currentUser.progress) currentUser.progress = {}; if (currentUser.progress[id] === -999) return;
+    let current = currentUser.progress[id] || 0;
+    if (id === "m2") currentUser.progress[id] = Math.max(current, amt); else currentUser.progress[id] = current + amt;
+    saveLocalUserData();
+  }
+
+  function claimMission(id) {
+    let target = currentUser.missions.find(m => m.id === id); if (!target) return;
+    if (target.type === 'ticket') currentUser.tickets += target.reward; else currentUser.coins += target.reward;
+    currentUser.progress[id] = -999; saveLocalUserData(); updateHeaderUI(); renderMissions(); alert(`🎁 報酬を受け取りました！`);
+  }
+
+  function getMousePos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function getTouchPos(e) { const r = canvas.getBoundingClientRect(); const t = e.touches[0]; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
+  function createExplosionParticles(x, y, type) {
+    let color = type === 'coin' ? "#fab005" : type === 'time' ? "#4dadf7" : "#fff";
+    for (let i = 0; i < 15; i++) particles.push({ x: x, y: y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6, size: Math.random()*4+2, life: 15, color: color });
+  }
+</script>
+</body>
+</html>
